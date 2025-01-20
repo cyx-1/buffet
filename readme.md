@@ -1,4 +1,4 @@
-![Coverage Status](./coverage_badge.svg)
+![release](./version_badge.svg) ![Coverage Status](./coverage_badge.svg) 
 
 # Setup
 - Run ```uv run .\scripts\generate_coverage_badge.py``` to generate a new badge
