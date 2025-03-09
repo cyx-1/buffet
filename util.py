@@ -119,6 +119,32 @@ def process_data_from_fred(url: str, file_name: str, columns: list[str], folder_
     except Exception as e:
         return Status(success=False, result=f"An error occurred: {str(e)}")
 
+def _add_recession_shading(ax, recession_df, date_range):
+    """Add recession shading to the plot if recession data is available."""
+    if recession_df is None or recession_df.empty:
+        return
+    
+    min_date, max_date = date_range
+    try:
+        recession_df.columns = recession_df.columns.str.strip()
+        
+        if 'Type' in recession_df.columns:
+            recession_df = recession_df[recession_df['Type'].isna() | (recession_df['Type'].str.strip() == 'Recession')]
+        
+        for col in ['Start', 'End']:
+            if col not in recession_df.columns:
+                raise ValueError(f"Required column '{col}' not found in recession data")
+            recession_df[col] = pd.to_datetime(recession_df[col].str.strip())
+        
+        mask = (recession_df['Start'] <= max_date) & (recession_df['End'] >= min_date)
+        recession_df = recession_df[mask]
+        
+        for idx, row in recession_df.iterrows():
+            ax.axvspan(row['Start'], row['End'], color='gray', alpha=0.2, 
+                      label='Recession' if idx == 0 else "")
+    except Exception as e:
+        print(f"Warning: Could not process recession data: {str(e)}")
+
 def create_dual_axis_plot(
     df1: pd.DataFrame,
     df2: pd.DataFrame,
@@ -128,6 +154,7 @@ def create_dual_axis_plot(
     title: str,
     y1_label: str,
     y2_label: str,
+    recession_df: pd.DataFrame | None = None,
     figsize: tuple = (12, 6)
 ) -> tuple[plt.Figure, plt.Axes, plt.Axes]:
     """
@@ -142,49 +169,50 @@ def create_dual_axis_plot(
         title (str): Title of the plot
         y1_label (str): Label for primary y-axis
         y2_label (str): Label for secondary y-axis
+        recession_df (pd.DataFrame | None): DataFrame with recession periods (Start and End columns)
         figsize (tuple): Figure size in inches (width, height)
         
     Returns:
         tuple[plt.Figure, plt.Axes, plt.Axes]: Figure and both axes objects
     """
-    # Ensure date columns are datetime
     df1[date_column] = pd.to_datetime(df1[date_column])
     df2[date_column] = pd.to_datetime(df2[date_column])
     
-    # Create the figure and primary axis
     fig, ax1 = plt.subplots(figsize=figsize)
     
-    # Plot first series on primary axis
-    color1 = '#1f77b4'  # Blue color
+    date_range = (
+        min(df1[date_column].min(), df2[date_column].min()),
+        max(df1[date_column].max(), df2[date_column].max())
+    )
+    _add_recession_shading(ax1, recession_df, date_range)
+    
+    # Plot first series
+    color1 = '#1f77b4'
     ax1.set_xlabel('Date', fontsize=12)
     ax1.set_ylabel(y1_label, color=color1, fontsize=12)
-    line1 = ax1.plot(df1[date_column], df1[y1_column], 
-                     color=color1, label=y1_label)
+    line1 = ax1.plot(df1[date_column], df1[y1_column], color=color1, label=y1_label)
     ax1.tick_params(axis='y', labelcolor=color1)
     
-    # Create the secondary axis
+    # Plot second series
     ax2 = ax1.twinx()
-    color2 = '#ff7f0e'  # Orange color
+    color2 = '#ff7f0e'
     ax2.set_ylabel(y2_label, color=color2, fontsize=12)
-    line2 = ax2.plot(df2[date_column], df2[y2_column], 
-                     color=color2, label=y2_label, linestyle='--')
+    line2 = ax2.plot(df2[date_column], df2[y2_column], color=color2, label=y2_label, linestyle='--')
     ax2.tick_params(axis='y', labelcolor=color2)
     
-    # Add grid but only for the primary axis
     ax1.grid(True, alpha=0.3)
     
-    # Combine legend handles and create a single legend
+    # Handle legend
     lines = line1 + line2
     labels = [l.get_label() for l in lines]
+    if recession_df is not None and not recession_df.empty:
+        from matplotlib.patches import Patch
+        lines.append(Patch(facecolor='gray', alpha=0.2))
+        labels.append('Recession')
+    
     ax1.legend(lines, labels, loc='upper left')
-    
-    # Set title
     ax1.set_title(title, fontsize=14, pad=15)
-    
-    # Rotate x-axis labels
     plt.xticks(rotation=45)
-    
-    # Adjust layout
     plt.tight_layout()
     
     return fig, ax1, ax2

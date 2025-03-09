@@ -1,0 +1,12 @@
+---
+description: Rules for Python projects
+globs: 
+alwaysApply: false
+---
+
+# Your rule content
+- Don't bother checking for requirements.txt when adding or removing a package
+- Always use uv to add / remove package
+- After adding or removing packages, always update pyproject.toml
+- Never install packages via pip globally
+- Always run PyTest to verify changes

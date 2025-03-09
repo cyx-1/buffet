@@ -44,6 +44,16 @@ def create_economic_indicators_plot(folder_path: str) -> tuple[plt.Figure, plt.A
     unemployment_df = pd.read_csv(os.path.join(folder_path, unemployment_file))
     gdp_df = pd.read_csv(os.path.join(folder_path, gdp_file))
     
+    # Read recession data
+    recession_file = os.path.join(folder_path, 'recessions.csv')
+    recession_df = None
+    if os.path.exists(recession_file):
+        try:
+            # Read CSV with proper handling of whitespace in column names
+            recession_df = pd.read_csv(recession_file, delimiter='\t')
+        except Exception as e:
+            print(f"Warning: Could not read recession data: {str(e)}")
+    
     # Create the plot
     return util.create_dual_axis_plot(
         df1=unemployment_df,
@@ -53,7 +63,8 @@ def create_economic_indicators_plot(folder_path: str) -> tuple[plt.Figure, plt.A
         y2_column='GDP',
         title='US Unemployment Rate and GDP Over Time',
         y1_label='Unemployment Rate (%)',
-        y2_label='GDP (Billions of Dollars)'
+        y2_label='GDP (Billions of Dollars)',
+        recession_df=recession_df
     )
 
 
