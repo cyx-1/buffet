@@ -3,11 +3,13 @@ name = "Buffet"
 version = "0.1.1"
 dependencies = [
     "anybadge>=1.16.0",
+    "pandas>=2.2.3",
     "pytest>=8.3.4",
     "pytest-cov>=6.0.0",
     "pytest-mock>=3.14.0",
     "pytest-watch>=4.2.0",
     "pyyaml>=6.0.2",
     "requests>=2.32.3",
+    "seaborn>=0.13.2",
     "toml>=0.10.2",
 ]
