@@ -1,6 +1,5 @@
 import pytest
-from test import create_pdf, get_string_width, PDF
-from testdata import content
+from test import create_pdf, get_string_width, PDF, content1 as content
 import pandas as pd
 
 

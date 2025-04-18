@@ -1,22 +1,4 @@
-from typing import TypedDict, List
-
-
-class AssetData(TypedDict):
-    id: str
-    description: str
-    timeseries: List[float]
-
-
-class ContentMetadata(TypedDict):
-    time: List[str]
-
-
-class Content(TypedDict):
-    metadata: ContentMetadata
-    data: List[AssetData]
-
-
-content: Content = {
+{
     "metadata": {
         "time": [
             "2024-01-02",
@@ -92,7 +74,7 @@ content: Content = {
             "2024-04-12",
             "2024-04-15",
             "2024-04-16",
-            "2024-04-17",
+            "2024-04-17"
         ]
     },
     "data": [
@@ -173,8 +155,8 @@ content: Content = {
                 175.72,
                 171.88,
                 168.58,
-                167.21,
-            ],
+                167.21
+            ]
         }
-    ],
+    ]
 }

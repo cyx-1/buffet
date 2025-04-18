@@ -171,3 +171,4 @@ cython_debug/
 .pypirc
 
 temp/
+asset_returns.pdf
