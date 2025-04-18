@@ -15,18 +15,21 @@ def load_content(json_file: str) -> Content:
 def transform_data(content: Dict) -> pd.DataFrame:
     """Transform content dictionary into a DataFrame"""
     time_periods: List[str] = content["metadata"]["time"]
-    transformed_data: Dict[str, List[Union[str, float]]] = {
-        "ID": [],
-        "Description": [],
-    }
+    transformed_data: Dict[str, List[Union[str, float]]] = {"ID": [], "Description": []}
     for period in time_periods:
         transformed_data[period] = []
+
+    has_total = "total" in content["data"][0]  # Check if 'total' exists in the JSON
+    if has_total:
+        transformed_data["Total"] = []  # Include Total column if it exists
 
     for item in content["data"]:
         transformed_data["ID"].append(item["id"])
         transformed_data["Description"].append(item["description"])
         for i, value in enumerate(item["timeseries"]):
             transformed_data[time_periods[i]].append(value)
+        if has_total:
+            transformed_data["Total"].append(item["total"])  # Use Total from JSON if it exists
 
     return pd.DataFrame(transformed_data)
 

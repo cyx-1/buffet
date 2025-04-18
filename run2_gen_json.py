@@ -57,11 +57,20 @@ def calculate_weekly_data(file_paths: Dict[str, str], descriptions: Dict[str, st
         date_to_change = {d['date']: d['change'] for d in all_weekly_data[ticker]}
         date_to_price = {d['date']: d['close'] for d in all_weekly_data[ticker]}
 
+        # Calculate cumulative return (total) for changes
+        price_timeseries = [date_to_price[date] for date in dates]
+        total_return = round(((price_timeseries[-1] - price_timeseries[0]) / price_timeseries[0]) * 100, 2)
+
         # Add to changes content
-        content_changes["data"].append({"id": ticker, "description": descriptions[ticker], "timeseries": [date_to_change[date] for date in dates]})
+        content_changes["data"].append(
+            {"id": ticker, "description": descriptions[ticker], "timeseries": [date_to_change[date] for date in dates], "total": total_return}
+        )
+
+        # Calculate price delta (total) for prices
+        total_price_delta = round(price_timeseries[-1] - price_timeseries[0], 2)
 
         # Add to prices content
-        content_prices["data"].append({"id": ticker, "description": descriptions[ticker], "timeseries": [date_to_price[date] for date in dates]})
+        content_prices["data"].append({"id": ticker, "description": descriptions[ticker], "timeseries": price_timeseries, "total": total_price_delta})
 
     return content_changes, content_prices
 
@@ -72,6 +81,14 @@ if __name__ == "__main__":
         "AAPL": {"file": "AAPL.csv", "description": "Apple Inc."},
         "MSFT": {"file": "MSFT.csv", "description": "Microsoft Corporation"},
         "TSLA": {"file": "TSLA.csv", "description": "Tesla, Inc."},
+        "NVDA": {"file": "NVDA.csv", "description": "nVIDIA Corporation"},
+        "META": {"file": "META.csv", "description": "Meta Platforms, Inc."},
+        "GOOGL": {"file": "GOOGL.csv", "description": "Alphabet Inc."},
+        "AMZN": {"file": "AMZN.csv", "description": "Amazon.com, Inc."},
+        "SPY": {"file": "SPY.csv", "description": "SPDR S&P 500 ETF Trust"},
+        "GLDM": {"file": "GLDM.csv", "description": "SPDR Gold ETF"},
+        "VRT": {"file": "VRT.csv", "description": "Vertiv Holdings Co."},
+        "VWETX": {"file": "VWETX.csv", "description": "Vanguard Long Term IG Fund"},
     }
 
     # Parse stock data and get both weekly changes and closing prices
