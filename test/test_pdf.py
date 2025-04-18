@@ -33,24 +33,24 @@ def test_get_string_width(sample_pdf):
 def test_data_transformation():
     """Test that data is correctly transformed into DataFrame format"""
     # Transform data using the same logic as in the main code
-    years = content["metadata"]["years"]
+    time_periods = content["metadata"]["time"]
     transformed_data = {
         "ID": [],
         "Description": [],
     }
-    for year in years:
-        transformed_data[year] = []
+    for period in time_periods:
+        transformed_data[period] = []
 
     for item in content["data"]:
         transformed_data["ID"].append(item["id"])
         transformed_data["Description"].append(item["description"])
         for i, value in enumerate(item["timeseries"]):
-            transformed_data[years[i]].append(value)
+            transformed_data[time_periods[i]].append(value)
 
     df = pd.DataFrame(transformed_data)
 
     # Verify DataFrame structure
-    assert list(df.columns) == ["ID", "Description"] + years
+    assert list(df.columns) == ["ID", "Description"] + time_periods
     assert len(df) == len(content["data"])
 
     # Verify data content
@@ -58,8 +58,8 @@ def test_data_transformation():
     first_row = df.iloc[0]
     assert first_row["ID"] == first_item["id"]
     assert first_row["Description"] == first_item["description"]
-    for i, year in enumerate(years):
-        assert first_row[year] == first_item["timeseries"][i]
+    for i, period in enumerate(time_periods):
+        assert first_row[period] == first_item["timeseries"][i]
 
 
 def test_highest_lowest_returns():
@@ -67,18 +67,18 @@ def test_highest_lowest_returns():
     # Create PDF to access the transformed data
     pdf = create_pdf()
 
-    # Get the years from content
-    years = content["metadata"]["years"]
+    # Get the periods from content
+    time_periods = content["metadata"]["time"]
 
-    # For each year, verify that the highest and lowest returns are correct
-    for year in years:
-        all_returns = [item["timeseries"][years.index(year)] for item in content["data"]]
+    # For each period, verify that the highest and lowest returns are correct
+    for period in time_periods:
+        all_returns = [item["timeseries"][time_periods.index(period)] for item in content["data"]]
         max_return = max(all_returns)
         min_return = min(all_returns)
 
         # Find the corresponding IDs
-        max_id = next(item["id"] for item in content["data"] if item["timeseries"][years.index(year)] == max_return)
-        min_id = next(item["id"] for item in content["data"] if item["timeseries"][years.index(year)] == min_return)
+        max_id = next(item["id"] for item in content["data"] if item["timeseries"][time_periods.index(period)] == max_return)
+        min_id = next(item["id"] for item in content["data"] if item["timeseries"][time_periods.index(period)] == min_return)
 
         # These values should match what's shown in the PDF summary rows
         assert any(cell.text == str(max_id) for cell in pdf._cells if cell.text)  # type: ignore

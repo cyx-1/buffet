@@ -11,7 +11,7 @@ class AssetData(TypedDict):
 
 
 class ContentMetadata(TypedDict):
-    years: List[str]
+    time: List[str]
 
 
 class Content(TypedDict):
@@ -21,35 +21,18 @@ class Content(TypedDict):
 
 def parse_aapl_data(file_path: str) -> Content:
     # Initialize data structures
-    monthly_closes = {}
+    dates = []
+    closing_prices = []
 
     # Read CSV file
     with open(file_path, 'r') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
-            date = datetime.strptime(row['Date'], '%Y-%m-%d')
-            year_month = date.strftime('%Y-%m')
+            dates.append(row['Date'])
+            closing_prices.append(float(row['Close']))
 
-            # Store the last (most recent) closing price for each month
-            monthly_closes[year_month] = float(row['Close'])
-
-    # Get sorted unique years
-    years = sorted(list(set(ym.split('-')[0] for ym in monthly_closes.keys())))
-
-    # Create the content structure
-    content: Content = {
-        "metadata": {"years": years},
-        "data": [
-            {
-                "id": "AAPL",
-                "description": "Apple Inc.",
-                "timeseries": [
-                    monthly_closes[f"{year}-12"] if f"{year}-12" in monthly_closes else list(v for k, v in monthly_closes.items() if k.startswith(year))[-1]
-                    for year in years
-                ],
-            }
-        ],
-    }
+    # Create the content structure with daily data
+    content: Content = {"metadata": {"time": dates}, "data": [{"id": "AAPL", "description": "Apple Inc.", "timeseries": closing_prices}]}
 
     return content
 
@@ -66,7 +49,7 @@ if __name__ == "__main__":
         f.write("    description: str\n")
         f.write("    timeseries: List[float]\n\n\n")
         f.write("class ContentMetadata(TypedDict):\n")
-        f.write("    years: List[str]\n\n\n")
+        f.write("    time: List[str]\n\n\n")
         f.write("class Content(TypedDict):\n")
         f.write("    metadata: ContentMetadata\n")
         f.write("    data: List[AssetData]\n\n\n")

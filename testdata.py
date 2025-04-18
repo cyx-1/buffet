@@ -8,7 +8,7 @@ class AssetData(TypedDict):
 
 
 class ContentMetadata(TypedDict):
-    years: List[str]
+    time: List[str]
 
 
 class Content(TypedDict):
@@ -17,7 +17,7 @@ class Content(TypedDict):
 
 
 content: Content = {
-    "metadata": {"years": ["2020", "2021", "2022", "2023", "2024"]},
+    "metadata": {"time": ["2020", "2021", "2022", "2023", "2024"]},
     "data": [
         {"id": "BTC", "description": "Bitcoin", "timeseries": [305.1, 59.8, -64.2, 155.3, 121.0]},
         {"id": "IWF", "description": "US Growth", "timeseries": [38.2, 27.6, -29.1, 42.7, 33.1]},
