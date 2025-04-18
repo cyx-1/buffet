@@ -2,11 +2,9 @@ import pandas as pd
 from fpdf import FPDF
 from typing import Dict, List, Union
 import json
-import os
-from class_definition import Content
 
 
-def load_content(json_file: str) -> Content:
+def load_content(json_file: str) -> Dict:
     """Load content from a JSON file"""
     with open(json_file, 'r') as f:
         return json.load(f)
@@ -108,7 +106,7 @@ def create_table(pdf: FPDF, df: pd.DataFrame, content: Dict, start_y: float, is_
     # Add title from metadata
     pdf.set_font("Courier", "B", 7.5)
     pdf.cell(0, 6, content["metadata"]["name"], ln=True, align="L")
-    pdf.ln(2)
+    pdf.ln(0.5)  # Reduced spacing from 1 to 0.5
 
     # Table headers - set explicit colors
     pdf.set_font("Courier", "B", 6)
@@ -162,24 +160,3 @@ def create_table(pdf: FPDF, df: pd.DataFrame, content: Dict, start_y: float, is_
         pdf.ln()
 
     return pdf.get_y()
-
-
-if __name__ == "__main__":
-    # Load data from JSON files dynamically
-    json_files = sorted([f for f in os.listdir('.') if f.startswith('testdata') and f.endswith('.json')], key=lambda x: int(''.join(filter(str.isdigit, x))))
-    contents = [load_content(json_file) for json_file in json_files]
-
-    dfs = [transform_data(content) for content in contents]
-
-    pdf = PDF(orientation="L")
-    pdf.add_page()
-
-    current_y = pdf.get_y()
-
-    for i, (df, content) in enumerate(zip(dfs, contents)):
-        current_y = create_table(pdf, df, content, current_y, content["metadata"].get("datatype") == "price")
-        if i < len(dfs) - 1:
-            pdf.ln(5)  # Add spacing between tables
-
-    pdf.output("asset_returns.pdf")
-    print("PDF has been generated as 'asset_returns.pdf'")
