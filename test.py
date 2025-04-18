@@ -2,6 +2,7 @@ import pandas as pd
 from fpdf import FPDF
 from typing import Dict, List, Union
 import json
+import os
 from class_definition import Content
 
 
@@ -28,17 +29,6 @@ def transform_data(content: Dict) -> pd.DataFrame:
             transformed_data[time_periods[i]].append(value)
 
     return pd.DataFrame(transformed_data)
-
-
-# Load data from JSON files
-content1: Content = load_content('testdata.json')  # Asset class returns
-content2: Content = load_content('testdata2.json')  # Stock weekly returns
-content3: Content = load_content('testdata3.json')  # Stock weekly prices
-
-# Create DataFrames
-df1 = transform_data(content1)
-df2 = transform_data(content2)
-df3 = transform_data(content3)
 
 
 class PDF(FPDF):
@@ -171,31 +161,22 @@ def create_table(pdf: FPDF, df: pd.DataFrame, content: Dict, start_y: float, is_
     return pdf.get_y()
 
 
-def create_pdf() -> FPDF:
-    # Create a PDF
+if __name__ == "__main__":
+    # Load data from JSON files dynamically
+    json_files = sorted([f for f in os.listdir('.') if f.startswith('testdata') and f.endswith('.json')], key=lambda x: int(''.join(filter(str.isdigit, x))))
+    contents = [load_content(json_file) for json_file in json_files]
+
+    dfs = [transform_data(content) for content in contents]
+
     pdf = PDF(orientation="L")
     pdf.add_page()
 
-    # Create first table for asset class returns
     current_y = pdf.get_y()
-    current_y = create_table(pdf, df1, content1, current_y, content1["metadata"].get("datatype") == "price")
 
-    # Add some spacing between tables
-    pdf.ln(5)
+    for i, (df, content) in enumerate(zip(dfs, contents)):
+        current_y = create_table(pdf, df, content, current_y, content["metadata"].get("datatype") == "price")
+        if i < len(dfs) - 1:
+            pdf.ln(5)  # Add spacing between tables
 
-    # Create second table for stock weekly returns
-    current_y = create_table(pdf, df2, content2, current_y, content2["metadata"].get("datatype") == "price")
-
-    # Add some spacing between tables
-    pdf.ln(5)
-
-    # Create third table for stock weekly prices
-    current_y = create_table(pdf, df3, content3, current_y, content3["metadata"].get("datatype") == "price")
-
-    return pdf
-
-
-if __name__ == "__main__":
-    pdf = create_pdf()
     pdf.output("asset_returns.pdf")
     print("PDF has been generated as 'asset_returns.pdf'")

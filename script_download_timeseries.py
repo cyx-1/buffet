@@ -1,5 +1,6 @@
 import yfinance as yf
 from datetime import datetime
+import pandas as pd
 
 
 def download_ticker_data(ticker_symbol: str, start_date: str, end_date: str):
@@ -19,6 +20,10 @@ def download_ticker_data(ticker_symbol: str, start_date: str, end_date: str):
 
     # Download the data
     data = ticker.history(start=start_date, end=end_date)
+
+    # Ensure dates are in ISO format and prices are rounded to 2 decimals
+    data.index = data.index.strftime('%Y-%m-%d')  # Convert index to ISO format
+    data = data.round(2)  # Round all numeric columns to 2 decimals
 
     # Save to CSV
     output_file = f"{ticker_symbol}.csv"

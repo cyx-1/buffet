@@ -12,22 +12,32 @@ def calculate_weekly_data(file_paths: Dict[str, str], descriptions: Dict[str, st
 
     # Process each stock's data
     for ticker, file_path in file_paths.items():
-        # Read CSV into pandas DataFrame
-        df = pd.read_csv(file_path)
-        df['Date'] = pd.to_datetime(df['Date'])
-        df['Week'] = (df['Date'] - df['Date'].min()).dt.days // 7 + 1
+        # Read CSV into pandas DataFrame and parse dates
+        df = pd.read_csv(file_path, parse_dates=['Date'])
+        df['Date'] = df['Date'].dt.tz_localize(None)  # Remove timezone info
+
+        # Calculate week numbers
+        min_date = df['Date'].min()
+        df['WeekNum'] = (df['Date'] - min_date).dt.days // 7
 
         # Group by week and calculate data
         weekly_data = []
-        for week in df['Week'].unique():
-            week_df = df[df['Week'] == week]
+        previous_end_price = None
+        for week_num in sorted(df['WeekNum'].unique()):
+            week_df = df[df['WeekNum'] == week_num]
             if len(week_df) > 0:
-                start_date = week_df.iloc[0]['Date'].strftime('%m-%d')
-                start_price = week_df.iloc[0]['Close']
-                end_price = week_df.iloc[-1]['Close']
-                pct_change = ((end_price - start_price) / start_price) * 100
-                weekly_data.append({'date': start_date, 'change': round(pct_change, 2), 'close': round(end_price, 2)})
+                start_date = week_df.iloc[0]['Date'].strftime('%m-%d')  # MM-DD format
+                end_price = round(float(week_df.iloc[-1]['Close']), 2)  # 2 decimals
+
+                if previous_end_price is not None:
+                    pct_change = round(((end_price - previous_end_price) / previous_end_price) * 100, 2)
+                else:
+                    pct_change = 0  # No previous week available
+
+                weekly_data.append({'date': start_date, 'change': pct_change, 'close': end_price})
                 common_dates.add(start_date)
+
+                previous_end_price = end_price  # Update for next iteration
 
         all_weekly_data[ticker] = weekly_data
 
@@ -35,9 +45,9 @@ def calculate_weekly_data(file_paths: Dict[str, str], descriptions: Dict[str, st
     dates = sorted(list(common_dates))
 
     # Create content structures for both files
-    content_changes: Content = {"metadata": {"time": dates}, "data": []}
+    content_changes: Content = {"metadata": {"name": "Stock Weekly Returns 2024", "datatype": "return", "time": dates}, "data": []}
 
-    content_prices: Content = {"metadata": {"time": dates}, "data": []}
+    content_prices: Content = {"metadata": {"name": "Stock Weekly Prices 2024", "datatype": "price", "time": dates}, "data": []}
 
     # Add data for each ticker
     for ticker in file_paths.keys():
