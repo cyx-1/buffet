@@ -1,12 +1,14 @@
 {
     "metadata": {
+        "name": "Asset Class Total Returns 2020-2024",
         "time": [
             "2020",
             "2021",
             "2022",
             "2023",
             "2024"
-        ]
+        ],
+        "datatype": "return"
     },
     "data": [
         {

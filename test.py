@@ -32,13 +32,13 @@ def transform_data(content: Dict) -> pd.DataFrame:
 
 # Load data from JSON files
 content1: Content = load_content('testdata.json')  # Asset class returns
-content2: Content = load_content('testdata2.json')  # Apple stock data
-content3: Content = load_content('testdata3.json')  # Apple weekly prices
+content2: Content = load_content('testdata2.json')  # Stock weekly returns
+content3: Content = load_content('testdata3.json')  # Stock weekly prices
 
 # Create DataFrames
-df1 = transform_data(content1)  # Asset class returns
-df2 = transform_data(content2)  # Apple stock data
-df3 = transform_data(content3)  # Apple weekly prices
+df1 = transform_data(content1)
+df2 = transform_data(content2)
+df3 = transform_data(content3)
 
 
 class PDF(FPDF):
@@ -55,7 +55,7 @@ def get_string_width(pdf: FPDF, text: str) -> float:
     return pdf.get_string_width(str(text))
 
 
-def create_table(pdf: FPDF, df: pd.DataFrame, title: str, start_y: float, is_price_table: bool = False) -> float:
+def create_table(pdf: FPDF, df: pd.DataFrame, content: Dict, start_y: float, is_price_table: bool = False) -> float:
     """Create a table in the PDF and return the ending Y position"""
     time_periods = list(df.columns)[2:]  # Skip ID and Description columns
 
@@ -112,9 +112,9 @@ def create_table(pdf: FPDF, df: pd.DataFrame, title: str, start_y: float, is_pri
     # Set position for the table
     pdf.set_xy(pdf.l_margin, start_y)
 
-    # Add title
+    # Add title from metadata
     pdf.set_font("Courier", "B", 7.5)
-    pdf.cell(0, 6, title, ln=True, align="L")
+    pdf.cell(0, 6, content["metadata"]["name"], ln=True, align="L")
     pdf.ln(2)
 
     # Table headers - set explicit colors
@@ -178,19 +178,19 @@ def create_pdf() -> FPDF:
 
     # Create first table for asset class returns
     current_y = pdf.get_y()
-    current_y = create_table(pdf, df1, "Asset Class Total Returns 2020-2024", current_y, is_price_table=False)
+    current_y = create_table(pdf, df1, content1, current_y, content1["metadata"].get("datatype") == "price")
 
     # Add some spacing between tables
     pdf.ln(5)
 
-    # Create second table for Apple stock data
-    current_y = create_table(pdf, df2, "Apple Daily Stock Returns 2024", current_y, is_price_table=False)
+    # Create second table for stock weekly returns
+    current_y = create_table(pdf, df2, content2, current_y, content2["metadata"].get("datatype") == "price")
 
     # Add some spacing between tables
     pdf.ln(5)
 
-    # Create third table for Apple weekly prices
-    current_y = create_table(pdf, df3, "Apple Weekly Prices 2024", current_y, is_price_table=True)
+    # Create third table for stock weekly prices
+    current_y = create_table(pdf, df3, content3, current_y, content3["metadata"].get("datatype") == "price")
 
     return pdf
 

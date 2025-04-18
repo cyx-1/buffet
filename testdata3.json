@@ -1,5 +1,6 @@
 {
     "metadata": {
+        "name": "Stock Weekly Prices 2024",
         "time": [
             "01-02",
             "01-10",
@@ -17,7 +18,8 @@
             "04-03",
             "04-10",
             "04-17"
-        ]
+        ],
+        "datatype": "price"
     },
     "data": [
         {

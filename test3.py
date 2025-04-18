@@ -57,8 +57,9 @@ def calculate_weekly_data(file_paths: Dict[str, str], descriptions: Dict[str, st
 if __name__ == "__main__":
     # Define input files and descriptions
     tickers = {
-        "AAPL": {"file": "AAPL_2025-01-01_2025-04-18.csv", "description": "Apple Inc."},
-        "MSFT": {"file": "MSFT_2025-01-01_2025-04-18.csv", "description": "Microsoft Corporation"},
+        "AAPL": {"file": "AAPL.csv", "description": "Apple Inc."},
+        "MSFT": {"file": "MSFT.csv", "description": "Microsoft Corporation"},
+        "TSLA": {"file": "TSLA.csv", "description": "Tesla, Inc."},
     }
 
     # Parse stock data and get both weekly changes and closing prices
