@@ -1,22 +1,17 @@
-# Asset class return data for various investment vehicles
-data = {
-    'ID': ['BTC', 'IWF', 'GLD', 'QQQ', 'SPY', 'IWD', 'MDY', 'IWM', 'CWB', 'HYG', 'PFF'],
-    'Description': [
-        'Bitcoin',
-        'US Growth',
-        'Gold',
-        'US Nasdaq 100',
-        'US Large Caps',
-        'US Value',
-        'US Mid Caps',
-        'US Small Caps',
-        'Convertible Bonds',
-        'High Yield Bonds',
-        'Preferred Stocks',
-    ],
-    '2024': [121.0, 33.1, 26.7, 25.6, 24.9, 14.2, 13.6, 11.4, 10.1, 8.0, 7.2],
-    '2023': [155.3, 42.7, 15.1, 54.8, 26.2, 11.5, 8.9, 16.8, 12.4, 9.1, 5.8],
-    '2022': [-64.2, -29.1, -0.3, -32.6, -18.1, -7.5, -13.1, -20.4, -15.2, -11.2, -17.3],
-    '2021': [59.8, 27.6, -3.6, 27.2, 28.7, 24.9, 24.6, 14.8, 8.2, 4.3, 6.4],
-    '2020': [305.1, 38.2, 24.8, 48.6, 18.4, 2.8, 13.7, 20.0, 23.7, 5.2, 6.1],
-}
+# Asset returns data array
+data = [
+    {'id': 'BTC', 'description': 'Bitcoin', 'timeseries': [305.1, 59.8, -64.2, 155.3, 121.0]},
+    {'id': 'IWF', 'description': 'US Growth', 'timeseries': [38.2, 27.6, -29.1, 42.7, 33.1]},
+    {'id': 'GLD', 'description': 'Gold', 'timeseries': [24.8, -3.6, -0.3, 15.1, 26.7]},
+    {'id': 'QQQ', 'description': 'US Nasdaq 100', 'timeseries': [48.6, 27.2, -32.6, 54.8, 25.6]},
+    {'id': 'SPY', 'description': 'US Large Caps', 'timeseries': [18.4, 28.7, -18.1, 26.2, 24.9]},
+    {'id': 'IWD', 'description': 'US Value', 'timeseries': [2.8, 24.9, -7.5, 11.5, 14.2]},
+    {'id': 'MDY', 'description': 'US Mid Caps', 'timeseries': [13.7, 24.6, -13.1, 8.9, 13.6]},
+    {'id': 'IWM', 'description': 'US Small Caps', 'timeseries': [20.0, 14.8, -20.4, 16.8, 11.4]},
+    {'id': 'CWB', 'description': 'Convertible Bonds', 'timeseries': [23.7, 8.2, -15.2, 12.4, 10.1]},
+    {'id': 'HYG', 'description': 'High Yield Bonds', 'timeseries': [5.2, 4.3, -11.2, 9.1, 8.0]},
+    {'id': 'PFF', 'description': 'Preferred Stocks', 'timeseries': [6.1, 6.4, -17.3, 5.8, 7.2]},
+]
+
+# Years for the timeseries (2020-2024)
+years = ['2020', '2021', '2022', '2023', '2024']
