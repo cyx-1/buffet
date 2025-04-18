@@ -1,7 +1,7 @@
 import csv
 import json
 from class_definition import Content
-from datetime import datetime
+from datetime import datetime, timedelta
 import pandas as pd
 from typing import Dict, List
 
@@ -16,18 +16,20 @@ def calculate_weekly_data(file_paths: Dict[str, str], descriptions: Dict[str, st
         df = pd.read_csv(file_path, parse_dates=['Date'])
         df['Date'] = df['Date'].dt.tz_localize(None)  # Remove timezone info
 
-        # Calculate week numbers
-        min_date = df['Date'].min()
-        df['WeekNum'] = (df['Date'] - min_date).dt.days // 7
+        # Ensure weeks start on Monday by using pandas resample
+        df.set_index('Date', inplace=True)
+        # Resample to weekly frequency starting on Monday
+        weekly_groups = df.resample('W-MON')
 
-        # Group by week and calculate data
+        # Calculate weekly data
         weekly_data = []
         previous_end_price = None
-        for week_num in sorted(df['WeekNum'].unique()):
-            week_df = df[df['WeekNum'] == week_num]
-            if len(week_df) > 0:
-                start_date = week_df.iloc[0]['Date'].strftime('%m-%d')  # MM-DD format
-                end_price = round(float(week_df.iloc[-1]['Close']), 2)  # 2 decimals
+
+        for date, group in weekly_groups:
+            if not group.empty:
+                # Get Monday's date for the week
+                start_date = (date - timedelta(days=date.weekday())).strftime('%m-%d')  # MM-DD format
+                end_price = round(float(group['Close'].iloc[-1]), 2)  # 2 decimals
 
                 if previous_end_price is not None:
                     pct_change = round(((end_price - previous_end_price) / previous_end_price) * 100, 2)
