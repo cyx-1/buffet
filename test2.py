@@ -39,8 +39,11 @@ def download_ticker_data(ticker_symbol: str, start_date: str, end_date: str, out
 
 
 if __name__ == "__main__":
-    # Example usage
-    ticker = "AAPL"  # Apple Inc.
-    start = "2024-01-01"
-    end = "2024-04-18"
-    download_ticker_data(ticker, start, end)
+    # Download data for both AAPL and MSFT
+    start = "2025-01-01"
+    end = "2025-04-18"
+
+    # Download both tickers
+    tickers = ["AAPL", "MSFT"]
+    for ticker in tickers:
+        download_ticker_data(ticker, start, end)

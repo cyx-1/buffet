@@ -33,10 +33,12 @@ def transform_data(content: Dict) -> pd.DataFrame:
 # Load data from JSON files
 content1: Content = load_content('testdata.json')  # Asset class returns
 content2: Content = load_content('testdata2.json')  # Apple stock data
+content3: Content = load_content('testdata3.json')  # Apple weekly prices
 
 # Create DataFrames
 df1 = transform_data(content1)  # Asset class returns
 df2 = transform_data(content2)  # Apple stock data
+df3 = transform_data(content3)  # Apple weekly prices
 
 
 class PDF(FPDF):
@@ -53,7 +55,7 @@ def get_string_width(pdf: FPDF, text: str) -> float:
     return pdf.get_string_width(str(text))
 
 
-def create_table(pdf: FPDF, df: pd.DataFrame, title: str, start_y: float) -> float:
+def create_table(pdf: FPDF, df: pd.DataFrame, title: str, start_y: float, is_price_table: bool = False) -> float:
     """Create a table in the PDF and return the ending Y position"""
     time_periods = list(df.columns)[2:]  # Skip ID and Description columns
 
@@ -71,27 +73,41 @@ def create_table(pdf: FPDF, df: pd.DataFrame, title: str, start_y: float) -> flo
         lowest_ids[period] = str(df.loc[lowest_idx, "ID"])
 
     # Calculate optimal column widths
-    pdf.set_font("Courier", "", 5)
+    pdf.set_font("Courier", "", 5)  # Base font for content
+    pdf.set_font("Courier", "B", 6)  # Header font
 
-    # Calculate ID width with extra padding
+    # Calculate ID width with extra padding considering both content and header
     all_ids = list(df["ID"]) + [highest_ids[period] for period in time_periods] + [lowest_ids[period] for period in time_periods]
-    id_width = max(get_string_width(pdf, "ID"), max(get_string_width(pdf, str(id_val)) for id_val in all_ids)) * 1.5
+    id_width = max(get_string_width(pdf, "ID"), max(get_string_width(pdf, str(id_val)) for id_val in all_ids)) * 1.2
 
-    description_width = max(get_string_width(pdf, "Description"), max(get_string_width(pdf, str(desc)) for desc in df["Description"])) * 1.2
+    # Calculate description width with extra padding considering both content and header
+    pdf.set_font("Courier", "B", 6)  # Header font for "Description"
+    header_desc_width = get_string_width(pdf, "Description")
+    pdf.set_font("Courier", "", 5)  # Content font
+    content_desc_width = max(get_string_width(pdf, str(desc)) for desc in df["Description"])
+    description_width = max(header_desc_width, content_desc_width) * 1.15
 
     # Calculate maximum width needed for any return column
+    pdf.set_font("Courier", "B", 6)  # Header font for period headers
     max_return_width = 0
     for period in time_periods:
-        period_width = max(
-            get_string_width(pdf, period),
-            max(get_string_width(pdf, f"{value:.1f}%") for value in df[period]),
-            get_string_width(pdf, f"{highest_returns[period]:.1f}%"),
-            get_string_width(pdf, f"{lowest_returns[period]:.1f}%"),
-        )
+        # Get header width
+        header_width = get_string_width(pdf, period)
+
+        # Get maximum content width using content font
+        pdf.set_font("Courier", "", 5)
+        if is_price_table:
+            content_widths = [get_string_width(pdf, f"{value:.2f}") for value in df[period]]
+        else:
+            content_widths = [get_string_width(pdf, f"{value:.1f}%") for value in df[period]]
+        content_width = max(content_widths)
+
+        # Use the larger of header or content width
+        period_width = max(header_width, content_width)
         max_return_width = max(max_return_width, period_width)
 
-    standard_return_width = max_return_width * 1.2
-    row_height = pdf.font_size * 1.8
+    standard_return_width = max_return_width * 1.25  # Reduced padding for better compactness
+    row_height = pdf.font_size * 1.8  # Slightly reduced row height
 
     # Set position for the table
     pdf.set_xy(pdf.l_margin, start_y)
@@ -123,29 +139,34 @@ def create_table(pdf: FPDF, df: pd.DataFrame, title: str, start_y: float) -> flo
 
         for period in time_periods:
             value = float(row[period])
-            pdf.set_cell_colors(value)
+            if not is_price_table:
+                pdf.set_cell_colors(value)
             pdf.set_font("Courier", "B", 5)
-            pdf.cell(standard_return_width, row_height, f"{value:.1f}%", 1, align="L", fill=True)
+            if is_price_table:
+                pdf.cell(standard_return_width, row_height, f"{value:.2f}", 1, align="L", fill=True)
+            else:
+                pdf.cell(standard_return_width, row_height, f"{value:.1f}%", 1, align="L", fill=True)
             pdf.set_font("Courier", "", 5)
         pdf.ln()
 
     # Summary rows
-    combined_width = id_width + description_width
+    if not is_price_table:
+        combined_width = id_width + description_width
 
-    # Highest Returns row
-    pdf.set_font("Courier", "B", 5)
-    pdf.set_text_color(0, 0, 0)
-    pdf.set_fill_color(255, 255, 255)
-    pdf.cell(combined_width, row_height, "Highest Return", 1, fill=True, align="L")
-    for period in time_periods:
-        pdf.cell(standard_return_width, row_height, str(highest_ids[period]), 1, align="L", fill=True)
-    pdf.ln()
+        # Highest Returns row
+        pdf.set_font("Courier", "B", 5)
+        pdf.set_text_color(0, 0, 0)
+        pdf.set_fill_color(255, 255, 255)
+        pdf.cell(combined_width, row_height, "Highest Return", 1, fill=True, align="L")
+        for period in time_periods:
+            pdf.cell(standard_return_width, row_height, str(highest_ids[period]), 1, align="L", fill=True)
+        pdf.ln()
 
-    # Lowest Returns row
-    pdf.cell(combined_width, row_height, "Lowest Return", 1, fill=True, align="L")
-    for period in time_periods:
-        pdf.cell(standard_return_width, row_height, str(lowest_ids[period]), 1, align="L", fill=True)
-    pdf.ln()
+        # Lowest Returns row
+        pdf.cell(combined_width, row_height, "Lowest Return", 1, fill=True, align="L")
+        for period in time_periods:
+            pdf.cell(standard_return_width, row_height, str(lowest_ids[period]), 1, align="L", fill=True)
+        pdf.ln()
 
     return pdf.get_y()
 
@@ -157,13 +178,19 @@ def create_pdf() -> FPDF:
 
     # Create first table for asset class returns
     current_y = pdf.get_y()
-    current_y = create_table(pdf, df1, "Asset Class Total Returns 2020-2024", current_y)
+    current_y = create_table(pdf, df1, "Asset Class Total Returns 2020-2024", current_y, is_price_table=False)
 
     # Add some spacing between tables
     pdf.ln(5)
 
     # Create second table for Apple stock data
-    current_y = create_table(pdf, df2, "Apple Daily Stock Returns 2024", current_y)
+    current_y = create_table(pdf, df2, "Apple Daily Stock Returns 2024", current_y, is_price_table=False)
+
+    # Add some spacing between tables
+    pdf.ln(5)
+
+    # Create third table for Apple weekly prices
+    current_y = create_table(pdf, df3, "Apple Weekly Prices 2024", current_y, is_price_table=True)
 
     return pdf
 
