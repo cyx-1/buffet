@@ -47,9 +47,9 @@ def calculate_weekly_data(file_paths: Dict[str, str], descriptions: Dict[str, st
     dates = sorted(list(common_dates))
 
     # Create content structures for both files
-    content_changes: Content = {"metadata": {"name": "Stock Weekly Returns 2024", "datatype": "return", "time": dates}, "data": []}
+    content_changes: Content = {"metadata": {"name": "Prior Week Asset Returns", "datatype": "return", "time": dates}, "data": []}
 
-    content_prices: Content = {"metadata": {"name": "Stock Weekly Prices 2024", "datatype": "price", "time": dates}, "data": []}
+    content_prices: Content = {"metadata": {"name": "Weekly Asset Prices", "datatype": "price", "time": dates}, "data": []}
 
     # Add data for each ticker
     for ticker in file_paths.keys():

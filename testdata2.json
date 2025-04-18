@@ -1,6 +1,6 @@
 {
     "metadata": {
-        "name": "Stock Weekly Returns 2024",
+        "name": "Prior Week Asset Returns",
         "datatype": "return",
         "time": [
             "01-06",
