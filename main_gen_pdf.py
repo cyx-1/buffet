@@ -8,29 +8,40 @@ if __name__ == "__main__":
     start = "2025-01-01"
     end = "2025-04-18"
 
-    tickers_to_download = ["AAPL", "MSFT", "TSLA", "NVDA", "META", "GOOGL", "AMZN", "SPY", "GLDM", "VRT", "VWETX"]
-    for ticker in tickers_to_download:
-        util_data.download_ticker_data(ticker, start, end)
-
-    # Define input files and descriptions
-    finance_data_path = util_data.get_finance_data_path()
     tickers = {
-        "AAPL": {"file": "AAPL.csv", "description": "Apple Inc."},
-        "MSFT": {"file": "MSFT.csv", "description": "Microsoft Corporation"},
-        "TSLA": {"file": "TSLA.csv", "description": "Tesla, Inc."},
-        "NVDA": {"file": "NVDA.csv", "description": "nVIDIA Corporation"},
-        "META": {"file": "META.csv", "description": "Meta Platforms, Inc."},
-        "GOOGL": {"file": "GOOGL.csv", "description": "Alphabet Inc."},
-        "AMZN": {"file": "AMZN.csv", "description": "Amazon.com, Inc."},
-        "SPY": {"file": "SPY.csv", "description": "SPDR S&P 500 ETF Trust"},
-        "GLDM": {"file": "GLDM.csv", "description": "SPDR Gold ETF"},
-        "VRT": {"file": "VRT.csv", "description": "Vertiv Holdings Co."},
-        "VWETX": {"file": "VWETX.csv", "description": "Vanguard Long Term IG Fund"},
+        "AAPL": "Apple Inc.",
+        "MSFT": "Microsoft Corporation",
+        "TSLA": "Tesla, Inc.",
+        "NVDA": "nVIDIA Corporation",
+        "META": "Meta Platforms, Inc.",
+        "GOOGL": "Alphabet Inc.",
+        "AMZN": "Amazon.com, Inc.",
+        "SPY": "SPDR S&P 500 ETF Trust",
+        "GLDM": "SPDR Gold ETF",
+        "VRT": "Vertiv Holdings Co.",
+        "YPF": "YPF Sociedad Anonima",
+        "WMT": "Walmart Inc.",
+        "WAB": "Westinghouse Air Brake Technologies Corporation",
+        "MRK": "Merck & Co., Inc.",
+        "GE": "General Electric Aerospace",
+        "GEHC": "GE HealthCare Technologies Inc.",
+        "GEV": "GE Vernova",
+        "INTC": "Intel Corporation",
+        "MRK": "Merck & Co., Inc.",
+        "WBD": "Warner Bros. Discovery, Inc.",
+        "BYDDY": "BYD Company Limited",
+        "VWETX": "Vanguard Long Term IG Fund",
+        "VWENX": "Vanguard Wellington Admiral Fund",
+        "VIIIX": "Vanguard Institutional Index Fund, SP500",
     }
 
+    for ticker in tickers:
+        util_data.download_ticker_data(ticker, start, end)
+
     # Parse stock data and get both weekly changes and closing prices
-    file_paths = {ticker: os.path.join(finance_data_path, "asset_prices", data["file"]) for ticker, data in tickers.items()}
-    descriptions = {ticker: data["description"] for ticker, data in tickers.items()}
+    finance_data_path = util_data.get_finance_data_path()
+    file_paths = {ticker: os.path.join(finance_data_path, "asset_prices", f"{ticker}.csv") for ticker in tickers}
+    descriptions = tickers
 
     content_changes, content_prices = util_data.calculate_weekly_data(file_paths, descriptions)
 
