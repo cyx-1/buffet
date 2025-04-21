@@ -1,4 +1,4 @@
-from util_data import download_file_and_compare, process_data_from_fred, Status, create_dual_axis_plot
+from util_data import download_file_and_compare, process_data_from_fred, Status, create_dual_axis_plot, calculate_weekly_data
 import os
 import pandas as pd
 import numpy as np
@@ -156,3 +156,122 @@ def test_create_dual_axis_plot():
 
     # Clean up
     plt.close(fig)
+
+
+def test_calculate_weekly_data(tmp_path):
+    """Test the calculate_weekly_data function with sample stock data."""
+    # Create sample data
+    dates = pd.date_range(start='2023-01-02', end='2023-01-30', freq='B')  # Business days for 4+ weeks
+    sample_data = pd.DataFrame(
+        {
+            'Date': dates,
+            'Open': np.linspace(100, 110, len(dates)),
+            'High': np.linspace(101, 111, len(dates)),
+            'Low': np.linspace(99, 109, len(dates)),
+            'Close': np.linspace(100.5, 110.5, len(dates)),
+            'Volume': np.ones(len(dates)) * 1000000,
+        }
+    )
+
+    # Create two sample CSV files
+    file_path1 = tmp_path / "AAPL.csv"
+    file_path2 = tmp_path / "MSFT.csv"
+    sample_data.to_csv(file_path1, index=False)
+    sample_data.to_csv(file_path2, index=False)
+
+    # Setup input data
+    file_paths = {"AAPL": str(file_path1), "MSFT": str(file_path2)}
+    descriptions = {"AAPL": "Apple Inc.", "MSFT": "Microsoft Corporation"}
+
+    # Call the function
+    content_changes, content_prices = calculate_weekly_data(file_paths, descriptions)
+
+    # Test metadata structure
+    assert "metadata" in content_changes
+    assert "metadata" in content_prices
+    assert "name" in content_changes["metadata"]
+    assert "name" in content_prices["metadata"]
+    assert content_changes["metadata"]["name"] == "Prior Week Asset Returns"
+    assert content_prices["metadata"]["name"] == "Weekly Asset Prices"
+
+    # Test data structure
+    assert "data" in content_changes
+    assert "data" in content_prices
+    assert len(content_changes["data"]) == 2  # Two stocks
+    assert len(content_prices["data"]) == 2  # Two stocks
+
+    # Test specific stock data
+    for stock_data in content_changes["data"]:
+        assert stock_data["id"] in ["AAPL", "MSFT"]
+        assert stock_data["description"] in ["Apple Inc.", "Microsoft Corporation"]
+        assert isinstance(stock_data["timeseries"], list)
+        assert isinstance(stock_data["total"], float)
+
+    for stock_data in content_prices["data"]:
+        assert stock_data["id"] in ["AAPL", "MSFT"]
+        assert stock_data["description"] in ["Apple Inc.", "Microsoft Corporation"]
+        assert isinstance(stock_data["timeseries"], list)
+        assert isinstance(stock_data["total"], float)
+
+
+def test_calculate_weekly_data_empty_data(tmp_path):
+    """Test calculate_weekly_data function with empty data."""
+    # Create empty DataFrame
+    empty_df = pd.DataFrame(columns=['Date', 'Open', 'High', 'Low', 'Close', 'Volume'])
+
+    # Save empty DataFrame
+    file_path = tmp_path / "EMPTY.csv"
+    empty_df.to_csv(file_path, index=False)
+
+    file_paths = {"EMPTY": str(file_path)}
+    descriptions = {"EMPTY": "Empty Stock"}
+
+    # Call the function
+    content_changes, content_prices = calculate_weekly_data(file_paths, descriptions)
+
+    # Verify basic structure is maintained
+    assert "metadata" in content_changes
+    assert "metadata" in content_prices
+    assert "data" in content_changes
+    assert "data" in content_prices
+
+    # Verify empty data is handled gracefully
+    assert len(content_changes["data"]) == 1
+    assert len(content_prices["data"]) == 1
+    assert len(content_changes["data"][0]["timeseries"]) == 0
+    assert len(content_prices["data"][0]["timeseries"]) == 0
+    assert content_changes["data"][0]["total"] == 0
+    assert content_prices["data"][0]["total"] == 0
+
+
+def calculate_weekly_data_single_week(tmp_path):
+    """Test calculate_weekly_data function with single week of data."""
+    # Create sample data for a single week
+    dates = pd.date_range(start='2023-01-02', end='2023-01-06', freq='B')  # One business week
+    sample_data = pd.DataFrame(
+        {
+            'Date': dates,
+            'Open': [100] * len(dates),
+            'High': [101] * len(dates),
+            'Low': [99] * len(dates),
+            'Close': [100.5] * len(dates),
+            'Volume': [1000000] * len(dates),
+        }
+    )
+
+    file_path = tmp_path / "SINGLE.csv"
+    sample_data.to_csv(file_path, index=False)
+
+    file_paths = {"SINGLE": str(file_path)}
+    descriptions = {"SINGLE": "Single Week Stock"}
+
+    # Call the function
+    content_changes, content_prices = calculate_weekly_data(file_paths, descriptions)
+
+    # Verify single week data
+    assert len(content_changes["data"]) == 1
+    assert len(content_prices["data"]) == 1
+    assert len(content_changes["data"][0]["timeseries"]) == 1
+    assert len(content_prices["data"][0]["timeseries"]) == 1
+    assert content_changes["data"][0]["total"] == 0  # No change in price
+    assert content_prices["data"][0]["total"] == 0  # No change in price

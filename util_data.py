@@ -280,40 +280,45 @@ def calculate_weekly_data(file_paths: Dict[str, str], descriptions: Dict[str, st
     Returns:
         tuple[Content, Content]: Weekly changes and weekly prices content.
     """
-    # Original calculation logic
     all_weekly_data: Dict[str, List[dict]] = {}
     common_dates = set()
 
     # Process each stock's data
     for ticker, file_path in file_paths.items():
-        # Read CSV into pandas DataFrame and parse dates
-        df = pd.read_csv(file_path, parse_dates=['Date'])
+        # Read CSV into pandas DataFrame
+        df = pd.read_csv(file_path)
+
+        # Handle empty DataFrame case
+        if df.empty:
+            all_weekly_data[ticker] = []
+            continue
+
+        # Parse dates after confirming data exists
+        df['Date'] = pd.to_datetime(df['Date'])
         df['Date'] = df['Date'].dt.tz_localize(None)  # Remove timezone info
 
-        # Ensure weeks start on Monday by using pandas resample
-        df.set_index('Date', inplace=True)
-        # Resample to weekly frequency starting on Monday
-        weekly_groups = df.resample('W-MON')
+        # Group by week, using the first day of each week
+        df['Week'] = df['Date'].dt.to_period('W').astype(str)
+        weekly_groups = df.groupby('Week', as_index=False)
 
         # Calculate weekly data
         weekly_data = []
-        previous_end_price = None
 
-        for date, group in weekly_groups:
-            if not group.empty:
-                date = pd.to_datetime(str(date))  # convert hashable to timestamp
-                start_date = date.strftime('%m-%d')  # MM-DD format
-                end_price = round(float(group['Close'].iloc[-1]), 2)  # 2 decimals
+        # Process each week's data
+        for _, group in weekly_groups:
+            end_price = round(float(group['Close'].iloc[-1]), 2)  # 2 decimals
+            date = pd.to_datetime(group['Date'].iloc[0])  # Use first date of the week
+            start_date = date.strftime('%m-%d')  # MM-DD format
 
-                if previous_end_price is not None:
-                    pct_change = round(((end_price - previous_end_price) / previous_end_price) * 100, 2)
-                else:
-                    pct_change = 0  # No previous week available
+            weekly_data.append({'date': start_date, 'change': 0, 'close': end_price})  # Will be calculated in the next pass
+            common_dates.add(start_date)
 
-                weekly_data.append({'date': start_date, 'change': pct_change, 'close': end_price})
-                common_dates.add(start_date)
-
-                previous_end_price = end_price  # Update for next iteration
+        # Calculate weekly changes
+        for i in range(len(weekly_data)):
+            if i > 0:
+                prev_price = weekly_data[i - 1]['close']
+                curr_price = weekly_data[i]['close']
+                weekly_data[i]['change'] = round(((curr_price - prev_price) / prev_price) * 100, 2)
 
         all_weekly_data[ticker] = weekly_data
 
@@ -322,26 +327,37 @@ def calculate_weekly_data(file_paths: Dict[str, str], descriptions: Dict[str, st
 
     # Create content structures for both files
     content_changes: Content = {"metadata": {"name": "Prior Week Asset Returns", "datatype": "return", "time": dates}, "data": []}
-
     content_prices: Content = {"metadata": {"name": "Weekly Asset Prices", "datatype": "price", "time": dates}, "data": []}
 
     # Add data for each ticker
     for ticker in file_paths.keys():
-        # Create date-to-data mappings
-        date_to_change = {d['date']: d['change'] for d in all_weekly_data[ticker]}
-        date_to_price = {d['date']: d['close'] for d in all_weekly_data[ticker]}
+        weekly_data = all_weekly_data[ticker]
 
-        # Calculate cumulative return (total) for changes
-        price_timeseries = [date_to_price[date] for date in dates]
-        total_return = round(((price_timeseries[-1] - price_timeseries[0]) / price_timeseries[0]) * 100, 2)
+        # Handle empty data case
+        if not weekly_data:
+            content_changes["data"].append({"id": ticker, "description": descriptions[ticker], "timeseries": [], "total": 0})
+            content_prices["data"].append({"id": ticker, "description": descriptions[ticker], "timeseries": [], "total": 0})
+            continue
+
+        # Create date-to-data mappings for the dates we have
+        date_to_change = {d['date']: d['change'] for d in weekly_data}
+        date_to_price = {d['date']: d['close'] for d in weekly_data}
+
+        # Get the weekly data for this ticker's dates only
+        ticker_dates = [d['date'] for d in weekly_data]
+        price_timeseries = [date_to_price[date] for date in ticker_dates]
+        change_timeseries = [date_to_change[date] for date in ticker_dates]
+
+        # Calculate totals
+        if len(price_timeseries) >= 2:
+            total_return = round(((price_timeseries[-1] - price_timeseries[0]) / price_timeseries[0]) * 100, 2)
+            total_price_delta = round(price_timeseries[-1] - price_timeseries[0], 2)
+        else:
+            total_return = 0
+            total_price_delta = 0
 
         # Add to changes content
-        content_changes["data"].append(
-            {"id": ticker, "description": descriptions[ticker], "timeseries": [date_to_change[date] for date in dates], "total": total_return}
-        )
-
-        # Calculate price delta (total) for prices
-        total_price_delta = round(price_timeseries[-1] - price_timeseries[0], 2)
+        content_changes["data"].append({"id": ticker, "description": descriptions[ticker], "timeseries": change_timeseries, "total": total_return})
 
         # Add to prices content
         content_prices["data"].append({"id": ticker, "description": descriptions[ticker], "timeseries": price_timeseries, "total": total_price_delta})
