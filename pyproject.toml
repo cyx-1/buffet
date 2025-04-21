@@ -17,6 +17,7 @@ dependencies = [
     "types-fpdf2>=2.8.2.20250318",
     "pandas-stubs>=2.2.3.250308",
     "yfinance>=0.2.55",
+    "pypdf>=5.4.0",
 ]
 [tool.mypy]
 ignore_missing_imports = true

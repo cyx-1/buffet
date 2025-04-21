@@ -1,4 +1,5 @@
 - This project uses pytest for unit tests
 - all unit tests are stored inside of the test folder
 - This project is using uv to manage library dependencies, which are listed inside of pyproject.toml
-- when running unit tests after making changes, do not ask for permission, just run the unit test
+- When adding new libraries, use "uv add" instead of "uv pip install", since "uv add" updates pyproject.toml 
+- always run unit tests after making changes
