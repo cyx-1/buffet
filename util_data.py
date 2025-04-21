@@ -280,6 +280,7 @@ def calculate_weekly_data(file_paths: Dict[str, str], descriptions: Dict[str, st
     Returns:
         tuple[Content, Content]: Weekly changes and weekly prices content.
     """
+    # Original calculation logic
     all_weekly_data: Dict[str, List[dict]] = {}
     common_dates = set()
 

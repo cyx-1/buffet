@@ -3,8 +3,13 @@ import json
 import os
 from util_ui import load_content, transform_data
 from util_ui import PDF, create_table
+import argparse
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Generate PDF report of asset returns')
+    parser.add_argument('--use-live-data', action='store_true', help='Use live data instead of baseline data')
+    args = parser.parse_args()
+
     start = "2025-01-01"
     end = "2025-04-18"
 
@@ -35,8 +40,10 @@ if __name__ == "__main__":
         "BTC": "Bitcoin",
     }
 
-    for ticker in tickers:
-        util_data.download_ticker_data(ticker, start, end)
+    # Only download data if using live data
+    if args.use_live_data:
+        for ticker in tickers:
+            util_data.download_ticker_data(ticker, start, end)
 
     # Parse stock data and get both weekly changes and closing prices
     finance_data_path = util_data.get_finance_data_path()
@@ -70,4 +77,4 @@ if __name__ == "__main__":
             pdf.ln(5)  # Add spacing between tables
 
     pdf.output("asset_returns.pdf")
-    print("PDF has been generated as 'asset_returns.pdf'")
+    print(f"PDF has been generated as 'asset_returns.pdf' using {'live' if args.use_live_data else 'baseline'} data")
