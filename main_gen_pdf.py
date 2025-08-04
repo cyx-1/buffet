@@ -10,34 +10,34 @@ if __name__ == "__main__":
     parser.add_argument('--use-live-data', action='store_true', help='Use live data instead of baseline data')
     args = parser.parse_args()
 
-    start = "2025-01-01"
-    end = "2025-04-18"
+    start = "2023-08-01"
+    end = "2025-08-01"
 
     tickers = {
-        "AAPL": "Apple Inc.",
-        "MSFT": "Microsoft Corporation",
-        "TSLA": "Tesla, Inc.",
-        "NVDA": "nVIDIA Corporation",
-        "META": "Meta Platforms, Inc.",
-        "GOOGL": "Alphabet Inc.",
-        "AMZN": "Amazon.com, Inc.",
-        "SPY": "SPDR S&P 500 ETF Trust",
-        "GLDM": "SPDR Gold ETF",
-        "VRT": "Vertiv Holdings Co.",
+        # "AAPL": "Apple Inc.",
+        # "MSFT": "Microsoft Corporation",
+        # "TSLA": "Tesla, Inc.",
+        # "NVDA": "nVIDIA Corporation",
+        # "META": "Meta Platforms, Inc.",
+        # "GOOGL": "Alphabet Inc.",
+        # "AMZN": "Amazon.com, Inc.",
+        # "SPY": "SPDR S&P 500 ETF Trust",
+        # "GLDM": "SPDR Gold ETF",
+        # "VRT": "Vertiv Holdings Co.",
         "YPF": "YPF Sociedad Anonima",
-        "WMT": "Walmart Inc.",
-        "WAB": "Westinghouse Air Brake Technologies Corporation",
-        "GE": "General Electric Aerospace",
-        "GEHC": "GE HealthCare Technologies Inc.",
-        "GEV": "GE Vernova",
-        "INTC": "Intel Corporation",
-        "MRK": "Merck & Co., Inc.",
-        "WBD": "Warner Bros. Discovery, Inc.",
+        # "WMT": "Walmart Inc.",
+        # "WAB": "Westinghouse Air Brake Technologies Corporation",
+        # "GE": "General Electric Aerospace",
+        # "GEHC": "GE HealthCare Technologies Inc.",
+        # "GEV": "GE Vernova",
+        # "INTC": "Intel Corporation",
+        # "MRK": "Merck & Co., Inc.",
+        # "WBD": "Warner Bros. Discovery, Inc.",
         "BYDDY": "BYD Company Limited",
-        "VWETX": "Vanguard Long Term IG Fund",
-        "VWENX": "Vanguard Wellington Admiral Fund",
-        "VIIIX": "Vanguard Institutional Index Fund, SP500",
-        "BTC": "Bitcoin",
+        # "VWETX": "Vanguard Long Term IG Fund",
+        # "VWENX": "Vanguard Wellington Admiral Fund",
+        # "VIIIX": "Vanguard Institutional Index Fund, SP500",
+        # "BTC": "Bitcoin",
     }
 
     # Only download data if using live data

@@ -3,3 +3,4 @@
 - This project is using uv to manage library dependencies, which are listed inside of pyproject.toml
 - When adding new libraries, use "uv add" instead of "uv pip install", since "uv add" updates pyproject.toml 
 - always run unit tests after making changes
+- to run a program, always use "uv run" instead of "python", since "uv run" sets up the environment correctly
