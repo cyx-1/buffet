@@ -1,6 +1,90 @@
 import polars as pl
+from typing import Optional
 import datetime
 from dateutil.relativedelta import relativedelta  # type: ignore
+import os
+from functools import reduce
+
+
+def add_total_column(out_df):
+    """
+    Helper to add a 'Total' column to the DataFrame, summing cash and all market value columns.
+    """
+    mv_cols = [col for col in out_df.columns if col.endswith('_MV')]
+    mv_exprs = [pl.col(c).fill_null(0) for c in mv_cols]
+    if 'Cash' in out_df.columns:
+        total_exprs = [pl.col('Cash')] + mv_exprs
+    else:
+        total_exprs = mv_exprs
+    if total_exprs:
+        total_sum = reduce(lambda a, b: a + b, total_exprs)
+    else:
+        total_sum = pl.lit(0)
+    return out_df.with_columns([total_sum.alias('Total')])
+
+
+def load_security_prices(qty_pivot, price_dir):
+    """
+    Helper to load price data for each security (except Cash) and return a dict of DataFrames keyed by security.
+    """
+    price_dfs = {}
+    for sec in qty_pivot.columns:
+        if sec in ("Month", "Cash"):
+            continue
+        price_path = os.path.join(price_dir, f"{sec}.csv")
+        if os.path.exists(price_path):
+            price_df = pl.read_csv(price_path)
+            date_col = find_date_col(price_df)
+            price_col = find_price_col(price_df)
+            if date_col and price_col:
+                price_df = price_df.with_columns(
+                    [pl.col(date_col).str.strptime(pl.Date, "%Y-%m-%d", strict=False).alias("_Date"), pl.col(price_col).cast(pl.Float64).alias("_Price")]
+                )
+                price_dfs[sec] = get_monthly_prices(price_df, qty_pivot["Month"].to_list())
+    return price_dfs
+
+
+def get_all_months_tuples(start_month, end_month, min_month_sort, max_month_sort):
+    """
+    Helper to compute the list of (Month, _MonthSort) tuples for the full range.
+    Accepts start_month and end_month (can be None), and the min/max month sort values from the data.
+    """
+    if end_month is not None:
+        try:
+            # start_month may be in YYYY-MM-DD or YYYY-MM format
+            try:
+                start_month_dt = datetime.datetime.strptime(str(start_month), "%Y-%m-%d")
+            except Exception:
+                start_month_dt = datetime.datetime.strptime(str(start_month), "%Y-%m")
+            end_month_dt = datetime.datetime.strptime(str(end_month), "%b-%y")
+            # If end_month is before min_month_sort, use min_month_sort as start
+            min_dt = min(start_month_dt, datetime.datetime.strptime(str(min_month_sort), "%Y-%m"))
+            max_dt = max(end_month_dt, datetime.datetime.strptime(str(max_month_sort), "%Y-%m"))
+            months = []
+            current = min_dt
+            while current <= max_dt:
+                months.append((current.strftime("%b-%y"), current.strftime("%Y-%m")))
+                next_month = current.replace(day=28) + datetime.timedelta(days=4)
+                current = next_month - datetime.timedelta(days=next_month.day - 1)
+            return ([m[0] for m in months], [m[1] for m in months])
+        except Exception:
+            return month_range(str(min_month_sort), str(max_month_sort))
+    else:
+        return month_range(str(min_month_sort), str(max_month_sort))
+
+
+def find_date_col(price_df):
+    for c in price_df.columns:
+        if c.lower() in ("date", "asofdate", "as_of_date"):
+            return c
+    return None
+
+
+def find_price_col(price_df):
+    for c in price_df.columns:
+        if c.lower() in ("close", "adj close", "price"):
+            return c
+    return None
 
 
 def parse_investment_ledger():
@@ -46,16 +130,52 @@ def parse_investment_ledger():
         return None
 
 
-def compute_eom_position(transactions_df: pl.DataFrame, account_name: str, start_month: str = "2023-08-01", end_month: str = None) -> pl.DataFrame:
-    """
-    Compute end-of-month position for each holding in the account.
-    Args:
-        transactions_df: DataFrame containing transaction data (must include columns: 'Account Name', 'Security', 'Entry Date', 'Qty')
-        account_name: The account name to filter on
-        start_month: The starting month in YYYY-MM-DD format (default: '2023-08-01')
-    Returns:
-        DataFrame with columns: ['Account Name', 'Security', 'Month', 'End of Month Qty']
-    """
+def get_monthly_prices(price_df, months):
+    """For each month in months, find the price with the closest date <= last day of month, or the earliest after if none before."""
+    month_price_rows = []
+    for month in months:
+        dt = datetime.datetime.strptime(month, "%b-%y")
+        next_month = dt.replace(day=28) + datetime.timedelta(days=4)
+        last_day = next_month - datetime.timedelta(days=next_month.day)
+        candidates = price_df.filter(pl.col("_Date") <= last_day)
+        if candidates.height > 0:
+            row = candidates.sort("_Date", descending=True).row(0)
+            price_idx = candidates.columns.index("_Price")
+            month_price_rows.append({"Month": month, "_Price": row[price_idx]})
+        else:
+            candidates = price_df.filter(pl.col("_Date") > last_day)
+            if candidates.height > 0:
+                row = candidates.sort("_Date").row(0)
+                price_idx = candidates.columns.index("_Price")
+                month_price_rows.append({"Month": month, "_Price": row[price_idx]})
+            else:
+                month_price_rows.append({"Month": month, "_Price": None})
+    return pl.DataFrame(month_price_rows)
+
+
+def parse_month_str(month_str):
+    for fmt in ("%b-%y", "%Y-%m-%d", "%Y-%m"):
+        try:
+            return datetime.datetime.strptime(month_str, fmt)
+        except Exception:
+            continue
+    raise ValueError(f"Invalid month format: {month_str}")
+
+
+def month_range(start, end):
+    months = []
+    # Ensure start and end are strings
+    start_str = str(start)
+    end_str = str(end)
+    current = datetime.datetime.strptime(start_str, "%Y-%m")
+    end_dt = datetime.datetime.strptime(end_str, "%Y-%m")
+    while current <= end_dt:
+        months.append((current.strftime("%b-%y"), current.strftime("%Y-%m")))
+        current += relativedelta(months=1)
+    return months
+
+
+def compute_monthly_positions(transactions_df, account_name):
     # Ensure correct dtypes
     df = transactions_df.with_columns([pl.col("Entry Date").cast(pl.Utf8).str.strptime(pl.Date, "%Y-%m-%d", strict=False), pl.col("Qty").cast(pl.Float64)])
 
@@ -77,46 +197,27 @@ def compute_eom_position(transactions_df: pl.DataFrame, account_name: str, start
 
     # Compute cumulative sum for each Account/Security
     result = monthly.with_columns([pl.col("Monthly Qty").cum_sum().over(["Account Name", "Security"]).alias("End of Month Qty")])
+    return result
 
+
+def compute_eom_position(transactions_df: pl.DataFrame, account_name: str, start_month: str = "2023-08-01", end_month: Optional[str] = None) -> pl.DataFrame:
+    """
+    Compute end-of-month position for each holding in the account.
+    Args:
+        transactions_df: DataFrame containing transaction data (must include columns: 'Account Name', 'Security', 'Entry Date', 'Qty')
+        account_name: The account name to filter on
+        start_month: The starting month in YYYY-MM-DD format (default: '2023-08-01')
+    Returns:
+        DataFrame with columns: ['Account Name', 'Security', 'Month', 'End of Month Qty']
+    """
+    result = compute_monthly_positions(transactions_df, account_name)
     # Get all months from the earliest transaction to the latest, but only show months >= start_month
-    min_month_sort = result["_MonthSort"].min()
-    max_month_sort = result["_MonthSort"].max()
-
-    def month_range(start, end):
-        months = []
-        current = datetime.datetime.strptime(start, "%Y-%m")
-        end_dt = datetime.datetime.strptime(end, "%Y-%m")
-        while current <= end_dt:
-            months.append((current.strftime("%b-%y"), current.strftime("%Y-%m")))
-            current += relativedelta(months=1)
-        return months
+    min_month_sort = str(result["_MonthSort"].min())
+    max_month_sort = str(result["_MonthSort"].max())
 
     # Always start from the earliest transaction month to ensure correct cumulative sum
     # If end_month is specified, extend the month range to include it
-    if end_month is not None:
-        try:
-            # start_month may be in YYYY-MM-DD or YYYY-MM format
-            try:
-                start_month_dt = datetime.datetime.strptime(start_month, "%Y-%m-%d")
-            except Exception:
-                start_month_dt = datetime.datetime.strptime(start_month, "%Y-%m")
-            end_month_dt = datetime.datetime.strptime(end_month, "%b-%y")
-            # If end_month is before min_month_sort, use min_month_sort as start
-            min_dt = min(start_month_dt, datetime.datetime.strptime(min_month_sort, "%Y-%m"))
-            max_dt = max(end_month_dt, datetime.datetime.strptime(max_month_sort, "%Y-%m"))
-            months = []
-            current = min_dt
-            while current <= max_dt:
-                months.append((current.strftime("%b-%y"), current.strftime("%Y-%m")))
-                next_month = current.replace(day=28) + datetime.timedelta(days=4)
-                current = next_month - datetime.timedelta(days=next_month.day - 1)
-            all_months_tuples = months
-        except Exception:
-            all_months_tuples = month_range(min_month_sort, max_month_sort)
-    else:
-        all_months_tuples = month_range(min_month_sort, max_month_sort)
-    all_months = [m[0] for m in all_months_tuples]
-    all_months_sort = [m[1] for m in all_months_tuples]
+    all_months, all_months_sort = get_all_months_tuples(start_month, end_month, min_month_sort, max_month_sort)
 
     # Get all securities for this account
     all_securities = result["Security"].unique().to_list()
@@ -139,15 +240,6 @@ def compute_eom_position(transactions_df: pl.DataFrame, account_name: str, start
     merged = merged.with_columns([pl.col("End of Month Qty").fill_null(0)])
     # Only keep relevant columns and sort by _MonthSort ascending
     merged = merged.select(["Account Name", "Security", "Month", "End of Month Qty", "_MonthSort"]).sort(["_MonthSort", "Security"])
-
-    # Always generate the full range from start_month to end_month (inclusive), even if there are no transactions for the end month
-    def parse_month_str(month_str):
-        for fmt in ("%b-%y", "%Y-%m-%d", "%Y-%m"):
-            try:
-                return datetime.datetime.strptime(month_str, fmt)
-            except Exception:
-                continue
-        raise ValueError(f"Invalid month format: {month_str}")
 
     # Determine the full month range to use for the output
     start_dt = parse_month_str(start_month)
@@ -176,56 +268,9 @@ def compute_eom_position(transactions_df: pl.DataFrame, account_name: str, start
     qty_pivot = qty_pivot.drop("_MonthSort")
 
     # Load price data for each security (except Cash)
-    import os
 
     price_dir = r"C:\Users\yexin\OneDrive\PDAJ\Yexin\Finance\Data\asset_prices"
-    price_dfs = {}
-    for sec in qty_pivot.columns:
-        if sec in ("Month", "Cash"):
-            continue
-        price_path = os.path.join(price_dir, f"{sec}.csv")
-        if os.path.exists(price_path):
-            price_df = pl.read_csv(price_path)
-            # Try to find a date column and a price column
-            date_col = None
-            for c in price_df.columns:
-                if c.lower() in ("date", "asofdate", "as_of_date"):
-                    date_col = c
-                    break
-            price_col = None
-            for c in price_df.columns:
-                if c.lower() in ("close", "adj close", "price"):
-                    price_col = c
-                    break
-            if date_col and price_col:
-                # Convert date to datetime
-                price_df = price_df.with_columns(
-                    [pl.col(date_col).str.strptime(pl.Date, "%Y-%m-%d", strict=False).alias("_Date"), pl.col(price_col).cast(pl.Float64).alias("_Price")]
-                )
-                # For each month in qty_pivot, find the price with the closest date <= last day of month
-                month_price_rows = []
-                for month in qty_pivot["Month"].to_list():
-                    # Get last day of month
-                    dt = datetime.datetime.strptime(month, "%b-%y")
-                    next_month = dt.replace(day=28) + datetime.timedelta(days=4)
-                    last_day = next_month - datetime.timedelta(days=next_month.day)
-                    # Find all price rows with _Date <= last_day
-                    candidates = price_df.filter(pl.col("_Date") <= last_day)
-                    if candidates.height > 0:
-                        # Take the row with the max _Date
-                        row = candidates.sort("_Date", descending=True).row(0)
-                        price_idx = candidates.columns.index("_Price")
-                        month_price_rows.append({"Month": month, "_Price": row[price_idx]})
-                    else:
-                        # No price before or on last day, try to take the earliest after
-                        candidates = price_df.filter(pl.col("_Date") > last_day)
-                        if candidates.height > 0:
-                            row = candidates.sort("_Date").row(0)
-                            price_idx = candidates.columns.index("_Price")
-                            month_price_rows.append({"Month": month, "_Price": row[price_idx]})
-                        else:
-                            month_price_rows.append({"Month": month, "_Price": None})
-                price_dfs[sec] = pl.DataFrame(month_price_rows)
+    price_dfs = load_security_prices(qty_pivot, price_dir)
     # For each security, add price and MV columns
     out_df = qty_pivot
     new_cols = ["Month"]
@@ -248,11 +293,7 @@ def compute_eom_position(transactions_df: pl.DataFrame, account_name: str, start
     out_df = out_df.select([col for col in new_cols if col in out_df.columns])
 
     # Add a column at the end to compute the total of cash plus all the MV for each security
-    mv_cols = [col for col in out_df.columns if col.endswith('_MV')]
-    if 'Cash' in out_df.columns:
-        out_df = out_df.with_columns([(pl.col('Cash') + sum([pl.col(c).fill_null(0) for c in mv_cols])).alias('Total')])
-    else:
-        out_df = out_df.with_columns([(sum([pl.col(c).fill_null(0) for c in mv_cols])).alias('Total')])
+    out_df = add_total_column(out_df)
     return out_df
 
 
